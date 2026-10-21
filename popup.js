@@ -10,7 +10,6 @@ const MID = [1.2, 1.72, 3.0, 7.5];
 
 function fmt(v) { return (+v).toFixed(2) + 'x'; }
 
-// --- MATH MODELS ---
 function markov(hist) {
   if (hist.length < 5) return null;
   const t = Array.from({ length: 4 }, () => [1, 1, 1, 1]);
@@ -112,12 +111,11 @@ function predict(method, hist) {
   return freq(hist);
 }
 
-// --- RENDER ---
 function render(hist) {
   const bubbles = document.getElementById('bubbles');
   bubbles.innerHTML = hist.map(v =>
     `<span class="b ${CLS[bucket(v)]}">${fmt(v)}</span>`
-  ).join('') || '<span style="color:#8b90a3;font-size:11px">No data scraped. Make sure you are on the Aviator tab.</span>';
+  ).join('') || '<span style="color:#8b90a3;font-size:11px">No data scraped. Refresh the game page.</span>';
 
   document.getElementById('rounds').textContent = hist.length;
   if (hist.length) {
@@ -148,30 +146,22 @@ function render(hist) {
   }).join('');
 }
 
-// --- FETCH DATA ---
 function fetchAndRender() {
-  // Ask the active tab for its data directly
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs || !tabs[0]) return;
-    
-    // Send message to the content script
     chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_HISTORY' }, (response) => {
-      if (chrome.runtime.lastError) {
-        // If it fails, it means the content script isn't running on this page yet
-        render([]); // Show empty state
-        document.getElementById('bubbles').innerHTML = '<span style="color:#ff5c5c;font-size:11px">Refresh the SportyBet page and try again.</span>';
+      if (chrome.runtime.lastError || !response) {
+        // Fall back to whatever the content script last stored
+        chrome.storage.local.get(['aviator_history'], ({ aviator_history }) => {
+          render(aviator_history || []);
+        });
         return;
       }
-      if (response && response.history) {
-        render(response.history);
-      } else {
-        render([]);
-      }
+      render(response.history || []);
     });
   });
 }
 
-// Run on load
 document.addEventListener('DOMContentLoaded', fetchAndRender);
 document.getElementById('method').addEventListener('change', fetchAndRender);
 document.getElementById('refresh').addEventListener('click', fetchAndRender);

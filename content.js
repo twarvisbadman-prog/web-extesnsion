@@ -1,42 +1,22 @@
-// A smarter scraper that looks for the 'x' format in the top bar
-function scrapeHistory() {
-  const values = [];
-  // Find all spans or divs that contain a number followed by 'x'
-  const elements = document.querySelectorAll('span, div, p');
-  
-  for (const el of elements) {
-    // Only look at elements with no children (just text) to avoid grabbing large blocks
-    if (el.children.length > 0) continue;
-    
-    const text = el.textContent.trim();
-    // Matches formats like "1.52x", "18.34x", "2.00x"
-    if (/^\d+(\.\d+)?x$/i.test(text)) {
-      const v = parseFloat(text.replace('x', ''));
-      if (!isNaN(v) && v >= 1) {
-        values.push(v);
-        // Stop once we have 40
-        if (values.length >= 40) break;
-      }
-    }
-  }
-  return values;
-}
-
-// Push history to storage on every change
-let last = '';
-setInterval(() => {
-  const h = scrapeHistory();
-  const sig = h.join(',');
-  if (h.length && sig !== last) {
-    last = sig;
-    chrome.storage.local.set({ aviator_history: h, aviator_updated: Date.now() });
-  }
-}, 1000); // Check every 1 second
-
-// Answer direct requests from popup
+// Listen for a message from the popup to get history
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_HISTORY') {
-    sendResponse({ history: scrapeHistory() });
+    // Grab all text on the page
+    const text = document.body.innerText;
+    
+    // Use a Regex to find things that look exactly like "1.52x" or "18.34x"
+    // This grabs them regardless of what class names SportyBet uses
+    const matches = text.match(/\b\d{1,3}(?:\.\d{1,2})?x\b/gi);
+    
+    let history = [];
+    if (matches) {
+      history = matches
+        .map(m => parseFloat(m.replace('x', '').replace('X', '')))
+        .filter(v => !isNaN(v) && v >= 1.0) // Aviator cannot crash below 1.00x
+        .slice(0, 40); // Keep only the most recent 40
+    }
+    
+    sendResponse({ history: history });
   }
   return true;
 });

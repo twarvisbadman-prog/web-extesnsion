@@ -1,34 +1,25 @@
-// Reads Aviator history from the page. Adjust SELECTORS to match your site.
-
-const SELECTORS = [
-  '.history-list .bubble',
-  '.history .bubble',
-  '.payouts-block .bubble',
-  '.coefficient-and-history .history',
-  '[class*="history"] [class*="bubble"]',
-  '[class*="history"] [class*="item"]',
-  '[class*="payout"] span',
-  '.stats-block .history-item'
-];
-
-function parseNum(text) {
-  if (!text) return NaN;
-  const m = String(text).replace(',', '.').match(/(\d+(?:\.\d+)?)/);
-  return m ? parseFloat(m[1]) : NaN;
-}
-
+// A smarter scraper that looks for the 'x' format in the top bar
 function scrapeHistory() {
-  for (const sel of SELECTORS) {
-    const nodes = document.querySelectorAll(sel);
-    if (!nodes.length) continue;
-    const values = [];
-    nodes.forEach(n => {
-      const v = parseNum(n.textContent);
-      if (!isNaN(v) && v >= 1 && v <= 100000) values.push(v);
-    });
-    if (values.length >= 3) return values.slice(0, 40);
+  const values = [];
+  // Find all spans or divs that contain a number followed by 'x'
+  const elements = document.querySelectorAll('span, div, p');
+  
+  for (const el of elements) {
+    // Only look at elements with no children (just text) to avoid grabbing large blocks
+    if (el.children.length > 0) continue;
+    
+    const text = el.textContent.trim();
+    // Matches formats like "1.52x", "18.34x", "2.00x"
+    if (/^\d+(\.\d+)?x$/i.test(text)) {
+      const v = parseFloat(text.replace('x', ''));
+      if (!isNaN(v) && v >= 1) {
+        values.push(v);
+        // Stop once we have 40
+        if (values.length >= 40) break;
+      }
+    }
   }
-  return [];
+  return values;
 }
 
 // Push history to storage on every change
@@ -40,9 +31,9 @@ setInterval(() => {
     last = sig;
     chrome.storage.local.set({ aviator_history: h, aviator_updated: Date.now() });
   }
-}, 1500);
+}, 1000); // Check every 1 second
 
-// Also answer direct requests from popup
+// Answer direct requests from popup
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_HISTORY') {
     sendResponse({ history: scrapeHistory() });

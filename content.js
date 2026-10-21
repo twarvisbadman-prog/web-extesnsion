@@ -1,48 +1,49 @@
 // content.js
 
-function scrapeHistory() {
+function extractMultipliers() {
   const values = [];
-  // A list of potential selectors for the history bubbles
-  const selectors = [
-    '.history-list .bubble',      // Common
-    '.payouts-block .bubble',     // Spribe style
-    '.history .bubble',
-    '[class*="history"] [class*="bubble"]',
-    '[class*="history"] [class*="item"]',
-    '[class*="payout"] span',
-    '.coefficient-and-history .history',
-    // A more aggressive approach: find any element that looks like a multiplier
-    'div, span'
-  ];
+  const seen = new Set();
 
-  for (const selector of selectors) {
-    const elements = document.querySelectorAll(selector);
-    for (const el of elements) {
-      // Ensure the element has no children and only contains text
-      if (el.children.length > 0) continue;
-      
-      const text = el.textContent.trim();
-      // Regex to match "1.52x", "2.00x", etc.
-      if (/^\d+(\.\d+)?x$/i.test(text)) {
-        const v = parseFloat(text.replace('x', ''));
-        if (!isNaN(v) && v >= 1) {
+  // Walk every element that has no children (leaf nodes with text only)
+  const walker = document.createTreeWalker(
+    document.body,
+    NodeFilter.SHOW_TEXT,
+    null
+  );
+
+  let node;
+  while ((node = walker.nextNode())) {
+    const text = (node.textContent || '').trim();
+    // Match "1.52x", "18.34x", "2.00x"
+    if (/^\d{1,4}(\.\d{1,3})?x$/i.test(text)) {
+      const v = parseFloat(text.replace(/x/i, ''));
+      if (!isNaN(v) && v >= 1 && v <= 100000) {
+        // Deduplicate by parent element so we don't read the same bubble twice
+        const parent = node.parentElement;
+        if (parent && !seen.has(parent)) {
+          seen.add(parent);
           values.push(v);
         }
       }
     }
-    // If we found data with a specific selector, stop and return it
-    if (values.length > 0) {
-      return values.slice(0, 40); // Keep the most recent 40
-    }
   }
-  
-  return [];
+
+  // Newest first; keep 40
+  return values.slice(0, 40);
 }
 
-// Listen for a message from the popup
+// Respond to popup requests
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_HISTORY') {
-    sendResponse({ history: scrapeHistory() });
+    sendResponse({ history: extractMultipliers() });
   }
   return true;
 });
+
+// Also keep a copy in storage so the popup can show data instantly
+setInterval(() => {
+  const h = extractMultipliers();
+  if (h.length) {
+    chrome.storage.local.set({ aviator_history: h, aviator_updated: Date.now() });
+  }
+}, 2000);

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { width: 340px; margin: 0; font-family: -apple-system, sans-serif; background: #0f1117; color: #e6e8ef; }
+  .head { padding: 12px 14px; border-bottom: 1px solid #2c3140; display: flex; justify-content: space-between; align-items: center; }
+  .head h1 { font-size: 14px; margin: 0; }
+  button { background: #00d68f; color: #04120c; border: none; padding: 6px 10px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; }
+  button.sec { background: #232733; color: #e6e8ef; border: 1px solid #2c3140; }
+  .body { padding: 12px 14px; }
+  .label { font-size: 10px; color: #8b90a3; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .bubbles { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; max-height: 90px; overflow-y: auto; }
+  .b { padding: 3px 7px; border-radius: 14px; font-size: 11px; font-weight: 700; background: #232733; border: 1px solid #2c3140; }
+  .b.low { color: #ff5c5c; } .b.mid { color: #ffb020; } .b.high { color: #00d68f; }
+  .pred { background: #232733; border: 1px solid #2c3140; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+  .pred .big { font-size: 22px; font-weight: 800; }
+  .pred .sub { font-size: 11px; color: #8b90a3; margin-top: 2px; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .stat { background: #1a1d27; border: 1px solid #2c3140; border-radius: 6px; padding: 8px; text-align: center; }
+  .stat .n { font-size: 15px; font-weight: 700; }
+  .stat .l { font-size: 9px; color: #8b90a3; text-transform: uppercase; letter-spacing: .4px; }
+  .probs { display: flex; gap: 4px; margin-top: 6px; }
+  .prob { flex: 1; background: #1a1d27; border: 1px solid #2c3140; border-radius: 4px; padding: 5px 2px; text-align: center; font-size: 10px; }
+  .prob.top { border-color: #00d68f; }
+  .prob .p { font-weight: 700; font-size: 12px; }
+  select { background: #232733; color: #e6e8ef; border: 1px solid #2c3140; border-radius: 6px; padding: 5px 8px; font-size: 12px; width: 100%; margin-bottom: 8px; }
+  .err { color: #ff5c5c; font-size: 12px; padding: 8px; background: #3d1515; border-radius: 6px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="head">
+  <h1>✈️ Trend Reader</h1>
+  <button id="refresh" class="sec">Refresh</button>
+</div>
+<div class="body">
+  <div class="label">Method</div>
+  <select id="method">
+    <option value="markov">Markov chain</option>
+    <option value="ngram">N-gram context</option>
+    <option value="freq">Frequency sampler</option>
+    <option value="linreg">Linear regression</option>
+  </select>
+
+  <div class="label">Next Round Guess</div>
+  <div class="pred" id="pred">
+    <div class="big">—</div>
+    <div class="sub">No data</div>
+    <div class="probs" id="probs"></div>
+  </div>
+
+  <div class="row" style="margin-bottom:10px">
+    <div class="stat"><div class="n" id="rounds">0</div><div class="l">Rounds</div></div>
+    <div class="stat"><div class="n" id="mean">—</div><div class="l">Mean</div></div>
+    <div class="stat"><div class="n" id="max">—</div><div class="l">Max</div></div>
+  </div>
+
+  <div class="label">Last 40 Rounds</div>
+  <div class="bubbles" id="bubbles"></div>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

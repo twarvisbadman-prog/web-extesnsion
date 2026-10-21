@@ -7,11 +7,10 @@ function bucket(v) {
 const CLS = ['low', 'mid', 'mid', 'high'];
 const NAMES = ['<1.5x', '1.5-2x', '2-5x', '5x+'];
 const MID = [1.2, 1.72, 3.0, 7.5];
-const RANGES = [[1, 1.5], [1.5, 2], [2, 5], [5, 10]];
 
 function fmt(v) { return (+v).toFixed(2) + 'x'; }
 
-// Markov
+// --- MATH MODELS ---
 function markov(hist) {
   if (hist.length < 5) return null;
   const t = Array.from({ length: 4 }, () => [1, 1, 1, 1]);
@@ -25,7 +24,6 @@ function markov(hist) {
   return { bucket: best, value: MID[best], probs };
 }
 
-// N-gram
 function ngram(hist, K = 8) {
   if (hist.length < K + 2) return null;
   const chrono = hist.slice().reverse().map(bucket);
@@ -43,7 +41,6 @@ function ngram(hist, K = 8) {
   return { bucket: best, value: MID[best], probs };
 }
 
-// Frequency
 function freq(hist) {
   if (hist.length < 5) return null;
   const counts = [1, 1, 1, 1];
@@ -55,7 +52,6 @@ function freq(hist) {
   return { bucket: best, value: MID[best], probs };
 }
 
-// Linear regression
 function solve(A, b) {
   const n = b.length;
   const M = A.map((r, i) => [...r, b[i]]);
@@ -116,11 +112,12 @@ function predict(method, hist) {
   return freq(hist);
 }
 
+// --- RENDER ---
 function render(hist) {
   const bubbles = document.getElementById('bubbles');
   bubbles.innerHTML = hist.map(v =>
     `<span class="b ${CLS[bucket(v)]}">${fmt(v)}</span>`
-  ).join('') || '<span style="color:#8b90a3;font-size:11px">No data scraped</span>';
+  ).join('') || '<span style="color:#8b90a3;font-size:11px">No data scraped. Make sure you are on the Aviator tab.</span>';
 
   document.getElementById('rounds').textContent = hist.length;
   if (hist.length) {
@@ -138,7 +135,7 @@ function render(hist) {
 
   if (!p) {
     predEl.querySelector('.big').textContent = '—';
-    predEl.querySelector('.sub').textContent = 'Not enough data';
+    predEl.querySelector('.sub').textContent = 'Need more rounds';
     probsEl.innerHTML = '';
     return;
   }
@@ -151,22 +148,30 @@ function render(hist) {
   }).join('');
 }
 
-function load() {
-  chrome.storage.local.get(['aviator_history'], ({ aviator_history }) => {
-    render(aviator_history || []);
+// --- FETCH DATA ---
+function fetchAndRender() {
+  // Ask the active tab for its data directly
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (!tabs || !tabs[0]) return;
+    
+    // Send message to the content script
+    chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_HISTORY' }, (response) => {
+      if (chrome.runtime.lastError) {
+        // If it fails, it means the content script isn't running on this page yet
+        render([]); // Show empty state
+        document.getElementById('bubbles').innerHTML = '<span style="color:#ff5c5c;font-size:11px">Refresh the SportyBet page and try again.</span>';
+        return;
+      }
+      if (response && response.history) {
+        render(response.history);
+      } else {
+        render([]);
+      }
+    });
   });
 }
 
-document.getElementById('refresh').addEventListener('click', () => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs[0]) return;
-    chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_HISTORY' }, (resp) => {
-      if (chrome.runtime.lastError || !resp) { load(); return; }
-      render(resp.history || []);
-    });
-  });
-});
-
-document.getElementById('method').addEventListener('change', load);
-
-load();
+// Run on load
+document.addEventListener('DOMContentLoaded', fetchAndRender);
+document.getElementById('method').addEventListener('change', fetchAndRender);
+document.getElementById('refresh').addEventListener('click', fetchAndRender);

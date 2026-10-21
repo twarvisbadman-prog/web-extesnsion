@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Aviator Trend Reader",
+  "version": "1.0",
+  "description": "Reads last 40 rounds and outputs a math-based guess.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Aviator Trend Reader"
+  }
+}
